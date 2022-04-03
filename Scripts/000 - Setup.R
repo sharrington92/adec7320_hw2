@@ -7,7 +7,7 @@
 
 # Folder Structure
 {
-  my.path <- file.path(getwd(), "HW/HW2/")
+  my.path <- file.path(getwd())
   
   if(!dir.exists(file.path(my.path, "Raw Data"))){
     dir.create(file.path(my.path, "Raw Data"))
