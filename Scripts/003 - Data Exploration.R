@@ -32,7 +32,7 @@
       select(where(is.numeric)) %>% 
       cor() 
     
-    main.corr[,"death.rate"]
+    main.corr[,"death.rate"] %>% sort()
   }
   
   # With age proportions
@@ -45,7 +45,7 @@
       select(where(is.numeric)) %>% 
       cor() 
     
-    age.corr[,"death.rate"]
+    age.corr[,"death.rate"] %>% sort()
   }
   
   # With race proportions
@@ -58,7 +58,7 @@
       select(where(is.numeric)) %>% 
       cor() 
     
-    race.corr[,"death.rate"]
+    race.corr[,"death.rate"] %>% sort()
   }
   
   # With hispanic proportions
@@ -71,7 +71,7 @@
       select(where(is.numeric)) %>% 
       cor() 
     
-    hisp.corr[,"death.rate"]
+    hisp.corr[,"death.rate"] %>% sort()
   }
   
   # With non-hispanic proportions
@@ -84,7 +84,7 @@
       select(where(is.numeric)) %>% 
       cor() 
     
-    nonhisp.corr[,"death.rate"]
+    nonhisp.corr[,"death.rate"] %>% sort()
   }
   
 }
