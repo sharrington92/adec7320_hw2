@@ -1,3 +1,5 @@
+# source(file.path("Scripts/000 - Setup.R"))
+
 # Load Cleaned Data
 {
   my.data.list <- readRDS(file.path(folder.data.saved, "Cleaned Data.RDS"))
@@ -27,12 +29,32 @@
 {
   # Data.main
   {
-    main.corr <- data.main %>% 
+    data.main.adj <- data.main %>% 
       filter(!(fips %in% counties.with.na$fips)) %>% 
-      select(where(is.numeric)) %>% 
+      select(where(is.numeric))
+    
+    main.corr <- data.main.adj %>% 
       cor() 
     
-    main.corr[,"death.rate"] %>% sort()
+    main.corr[which(abs(main.corr[,"death.rate"]) > .2),"death.rate"] %>% sort()
+    
+    # Most Correlated Variables
+    {
+      vars <- names(main.corr[which(abs(main.corr[,"death.rate"]) > .3),"death.rate"])
+      
+      pairs(data.main.adj[,vars])
+       
+    }
+    
+    # All Scatter plots
+    {
+      v1 <- seq(1, 70, 4)
+      v2 <- v1 + 4
+      v2[length(v2)] <- nrow(main.corr)
+      for(i in seq_along(v1)){
+        pairs(data.main.adj[,c(12, v1[i]:v2[i])])
+      } 
+    }
   }
   
   # With age proportions
