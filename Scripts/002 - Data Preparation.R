@@ -1,6 +1,6 @@
 # source(file.path(folder.scripts, "001 - Import Data.R"))
 
-# Prep Vaccination Dataset
+# Prep Vaccination Dataset ----
 {
   vaccines <- vaccinations.raw %>% 
     filter(mdy(Date) == ymd("2022-03-31")) %>% 
@@ -10,7 +10,7 @@
   colnames(vaccines)
 }
 
-# Prep COVID Data
+# Prep COVID Data ----
 {
   covid <- covid.raw %>% 
     filter(ymd(date) < ymd("2022-04-01")) %>% 
@@ -18,9 +18,9 @@
     summarize(across(c(cases, deaths), sum))
 }
 
-# Prep County Demographics
+# Prep County Demographics ----
 {
-  # Get lookup table for age groupings to actual ages
+  ## Get lookup table for age groupings to actual ages ----
   demo.age.lookup <- data.frame(
     agegrp = c(0:18),
     ages = c("All", paste0(seq(0, 80, 5), "-", seq(4, 84, 5)), "85+")
@@ -55,7 +55,7 @@
   hispanic <- c("h", "hwa", "hba", "hia", "haa", "hna", "htom")
   not.hispanic <- c("nh", "nhwa", "nhba", "nhia", "nhaa", "nhna", "nhtom")
   
-  # Separate data into 3 datasets based on above vectors
+  # Separate data into 3 datasets based on above vectors ----
   demographics.list <- demographics %>% 
     filter(
       category %in% c(races, hispanic, not.hispanic)
@@ -78,7 +78,7 @@
   })
   
   
-  # Add totals for hispanic/not hispanic datasets
+  # Add totals for hispanic/not hispanic datasets ----
   {
     # Find which datasets are hispanic/not
     nh.list <- names(demographics.list)[which(str_detect(names(demographics.list), "not.hispanic"))]
@@ -97,7 +97,7 @@
     }
   }
   
-  # Create dataset of age totals
+  # Create dataset of age totals ----
   {
     demographics.ages <- demographics.list[r.list] %>% 
       do.call(rbind, .) %>% 
@@ -113,7 +113,7 @@
   }
   
   
-  # Create dataset of race totals (sum ages)
+  # Create dataset of race totals (sum ages) ----
   {
     demographics.races <- demographics.list[r.list] %>% 
       do.call(rbind, .) %>% 
@@ -126,7 +126,41 @@
   }
   
   
-  # Create dataset of proportions by race and age
+  # Create dataset of hispanic/non totals (sum ages) ----
+  {
+    demographics.hisp <- demographics.list[h.list] %>% 
+      do.call(rbind, .) %>% 
+      filter(ages == "All")
+    
+    demographics.hisp.prop <- demographics.hisp %>% 
+      left_join(
+        y = demographics.ages %>% select(fips, total),
+        by = "fips"
+      ) %>% 
+      mutate(across(
+        -c(fips, ages), function(x){x / total}
+      ))
+  }
+  
+  
+  # Create dataset of non-hispanic totals (sum ages) ----
+  {
+    demographics.nonhisp <- demographics.list[nh.list] %>% 
+      do.call(rbind, .) %>% 
+      filter(ages == "All")
+    
+    demographics.nonhisp.prop <- demographics.nonhisp %>% 
+      left_join(
+        y = demographics.ages %>% select(fips, total),
+        by = "fips"
+      ) %>% 
+      mutate(across(
+        -c(fips, ages), function(x){x / total}
+      ))
+  }
+  
+  
+  # Create dataset of proportions by race and age ----
   {
     demographics.prop.list <- lapply(demographics.list[r.list], function(x){
       x %>% 
@@ -141,7 +175,7 @@
     
   }
   
-  # Create basic summary dataset
+  # Create basic summary dataset ----
   {
     demographics.basic <- demographics.list[r.list] %>% 
       do.call(rbind, .) %>% 
@@ -177,35 +211,83 @@
   }
 }
 
-# Join COVID, vaccine, and basics demographics datasets
+# County Dataset ----
 {
-  
-  data.main <- left_join(
-    x = covid,
-    y = demographics.basic,
-    by = "fips"
+  inc.counties <- base::intersect(
+    covid %>% pull(fips),
+    demographics.basic %>% pull(fips)
   ) %>% 
+    base::intersect(
+      vaccines %>% pull(fips)
+    )
+  
+  # Counties excluded from covid
+  exc.covid <- setdiff(covid$fips, inc.counties)
+  
+  # Counties excluded from demographics
+  exc.demo <- setdiff(demographics$fips, inc.counties)
+  
+  # Counties excluded from vaccines
+  exc.vacc <- setdiff(vaccines$fips, inc.counties)
+  
+  # All Excluded
+  exc.all <- unique(c(exc.covid, exc.demo, exc.vacc)) %>% 
+    sort()
+  
+  # Create counties dataset
+  counties <- demographics.raw %>% 
+    rename_with(.fn = str_to_lower) %>% 
+    mutate(
+      fips = str_c(state, county)
+    ) %>% 
+    select(fips, stname, ctyname) %>% 
+    distinct() %>% 
+    rename(state = stname, county = ctyname) %>% 
+    mutate(
+      included.in.all = ifelse(fips %in% inc.counties, 1,0),
+      excluded.from.covid = ifelse(fips %in% exc.covid, 1,0),
+      excluded.from.demo = ifelse(fips %in% exc.demo, 1,0),
+      excluded.from.vacc = ifelse(fips %in% exc.vacc, 1,0)
+    )
+}
+
+# Join COVID, vaccine, and basics demographics datasets ----
+{
+  data.main <- left_join(
+      x = covid,
+      y = demographics.basic,
+      by = "fips"
+    ) %>% 
+    mutate(
+      case.rate = cases / tot_pop,
+      death.rate = deaths / tot_pop
+    ) %>% 
     left_join(
       y = vaccines,
       by = "fips"
-    )
+    ) %>% 
+    filter(fips %in% inc.counties)
   
 }
 
 
-# Save cleaned data as a list of datasets
+# Save cleaned data as a list of datasets ----
 {
   my.data.list <- list(
-    data.main, 
+    data.main, counties,
     demographics.ages, demographics.ages.prop, 
     demographics.races, demographics.races.prop,
+    demographics.nonhisp, demographics.nonhisp.prop,
+    demographics.hisp, demographics.hisp.prop,
     demographics.list, demographics.prop.list
   )
   
   names(my.data.list) <- c(
-    "data.main", 
+    "data.main", "counties",
     "demographics.ages", "demographics.ages.prop", 
     "demographics.races", "demographics.races.prop",
+    "demographics.nonhisp", "demographics.nonhisp.prop",
+    "demographics.hisp", "demographics.hisp.prop",
     "demographics.list", "demographics.prop.list"
   )
   
