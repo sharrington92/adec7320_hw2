@@ -5,7 +5,8 @@
   vaccines <- vaccinations.raw %>% 
     filter(mdy(Date) == ymd("2022-03-31")) %>% 
     rename_with(.fn = str_to_lower) %>% 
-    select(-c(date, mmwr_week, recip_county, recip_state))
+    select(-c(date, mmwr_week, recip_county, recip_state)) %>% 
+    select(!contains("svi") & !contains("equity"))
   
   colnames(vaccines)
 }
