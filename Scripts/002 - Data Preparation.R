@@ -160,22 +160,6 @@
       ))
   }
   
-  
-  # Create dataset of proportions by race and age ----
-  {
-    demographics.prop.list <- lapply(demographics.list[r.list], function(x){
-      x %>% 
-        left_join(
-          y = demographics.basic %>% select(fips, tot_pop) %>% rename(total.grand = tot_pop),
-          by = "fips"
-        ) %>% 
-        mutate(across(
-          -c(fips, ages), function(x){x / total.grand}
-        ))
-    })
-    
-  }
-  
   # Create basic summary dataset ----
   {
     demographics.basic <- demographics.list[r.list] %>% 
@@ -209,6 +193,24 @@
           ),
         by = "fips"
       )
+  }
+  
+  
+  # Create dataset of proportions by race and age ----
+  {
+    demographics.prop.list <- lapply(demographics.list[r.list], function(x){
+      x %>% 
+        left_join(
+          y = demographics.basic %>%
+            select(fips, tot_pop) %>% 
+            rename(total.grand = tot_pop),
+          by = "fips"
+        ) %>% 
+        mutate(across(
+          -c(fips, ages), function(x){x / total.grand}
+        ))
+    })
+    
   }
 }
 
